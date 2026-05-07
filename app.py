@@ -1,17 +1,21 @@
 import os
+from io import BytesIO
+
 import numpy as np
 from flask import Flask, request, jsonify, render_template
+from PIL import Image
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 # Define CIFAR-10 class names
 CLASS_NAMES = ['airplane', 'automobile', 'bird', 'cat', 'deer',
                'dog', 'frog', 'horse', 'ship', 'truck']
 
 # Load the trained model
-MODEL_PATH = 'cifar10_model.keras'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, 'cifar10_model.keras')
 if os.path.exists(MODEL_PATH):
     model = load_model(MODEL_PATH)
     print("Model loaded successfully!")
@@ -24,8 +28,8 @@ def preprocess_image(img_path):
     Preprocess the image to match the model's input shape (32, 32, 3)
     and normalize pixel values to [0, 1].
     """
-    img = image.load_img(img_path, target_size=(32, 32))
-    img_array = image.img_to_array(img)
+    img = Image.open(img_path).convert('RGB').resize((32, 32))
+    img_array = np.asarray(img, dtype=np.float32)
     img_array = np.expand_dims(img_array, axis=0) # Add batch dimension
     img_array = img_array / 255.0 # Normalize as done in training
     return img_array
@@ -47,20 +51,13 @@ def predict():
         return jsonify({'error': 'No selected file'}), 400
 
     try:
-        # Save uploaded file temporarily
-        temp_path = 'temp_upload.jpg'
-        file.save(temp_path)
-
-        # Preprocess and predict
-        processed_img = preprocess_image(temp_path)
+        # Read the uploaded image in memory to avoid filesystem issues on deployment.
+        processed_img = preprocess_image(BytesIO(file.read()))
         prediction = model.predict(processed_img)
 
         # Get the class with the highest probability
         predicted_class_idx = np.argmax(prediction)
         predicted_label = CLASS_NAMES[predicted_class_idx]
-
-        # Cleanup
-        os.remove(temp_path)
 
         return jsonify({'prediction': predicted_label})
     except Exception as e:
