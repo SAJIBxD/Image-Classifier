@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Classifier</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; }
+        .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 500px; }
+        h1 { color: #1a73e8; }
+        #image-preview { max-width: 100%; height: auto; margin-top: 1rem; border-radius: 8px; display: none; }
+        .upload-btn { background: #1a73e8; color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: inline-block; margin-top: 1rem; }
+        #file-input { display: none; }
+        #result { margin-top: 1.5rem; font-size: 1.5rem; font-weight: bold; color: #333; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; display: none; margin: 1rem auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Classifier</h1>
+        <p>Upload an image to know what it is</p>
+        <p><sub>It can classify images into the following categories: <br>
+            ['airplane', 'automobile', 'bird', 'cat', 'deer',
+               'dog', 'frog', 'horse', 'ship', 'truck']</sub></p>
+
+        <label class="upload-btn">
+            Choose Image
+            <input type="file" id="file-input" accept="image/*">
+        </label>
+
+        <br>
+        <img id="image-preview" alt="Preview">
+        <div class="loader" id="loader"></div>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const preview = document.getElementById('image-preview');
+        const resultDiv = document.getElementById('result');
+        const loader = document.getElementById('loader');
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show preview
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+            resultDiv.innerText = '';
+
+            // Prepare upload
+            const formData = new FormData();
+            formData.append('file', file);
+
+            loader.style.display = 'block';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.prediction) {
+                    resultDiv.innerText = `Prediction: ${data.prediction}`;
+                } else {
+                    resultDiv.innerText = 'Error: ' + data.error;
+                }
+            } catch (error) {
+                resultDiv.innerText = 'Error connecting to server';
+            } finally {
+                loader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
