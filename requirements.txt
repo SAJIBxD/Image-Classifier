@@ -1,6 +1,4 @@
-flask
-flask
-tensorflow-cpu
+tensorflow
 numpy
 Pillow
 gunicorn
